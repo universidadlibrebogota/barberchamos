@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Admin — Barber Chamos</title>
+
+<link rel="stylesheet" href="styles.css">
+
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+
+.admin-section{
+    padding:100px 7%;
+}
+
+.admin-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:50px;
+}
+
+.admin-header h1{
+    font-family:'Cormorant Garamond',serif;
+    font-size:55px;
+}
+
+.admin-header h1 span{
+    color:var(--gold);
+}
+
+.admin-welcome{
+    color:var(--gray);
+    margin-top:8px;
+    font-size:15px;
+}
+
+.admin-cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:25px;
+    margin-bottom:60px;
+}
+
+.admin-card{
+    background:var(--dark);
+    padding:30px;
+    border-radius:20px;
+    border-left:4px solid var(--gold);
+}
+
+.admin-card h3{
+    color:var(--gray);
+    font-size:14px;
+    letter-spacing:2px;
+    margin-bottom:12px;
+}
+
+.admin-card p{
+    font-size:42px;
+    font-family:'Cormorant Garamond',serif;
+    color:var(--gold);
+}
+
+.appointments-table{
+    background:var(--dark);
+    border-radius:20px;
+    overflow:hidden;
+}
+
+.appointments-table h2{
+    font-family:'Cormorant Garamond',serif;
+    font-size:36px;
+    padding:30px 35px 20px;
+    border-bottom:1px solid #222;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th{
+    text-align:left;
+    padding:18px 25px;
+    color:var(--gold);
+    font-size:13px;
+    letter-spacing:1px;
+    border-bottom:1px solid #222;
+}
+
+td{
+    padding:18px 25px;
+    border-bottom:1px solid #1a1a1a;
+    font-size:14px;
+    color:#CCC;
+}
+
+tr:last-child td{
+    border-bottom:none;
+}
+
+tr:hover td{
+    background:rgba(201,168,76,.05);
+}
+
+.status-badge{
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:1px;
+}
+
+.status-pendiente{
+    background:rgba(201,168,76,.15);
+    color:var(--gold);
+}
+
+.status-completada{
+    background:rgba(50,200,100,.15);
+    color:#4CAF50;
+}
+
+.empty-state{
+    text-align:center;
+    padding:60px;
+    color:var(--gray);
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="admin-section">
+
+    <div class="admin-header">
+
+        <div>
+
+            <h1>
+                Panel <span>Admin</span>
+            </h1>
+
+            <p
+            class="admin-welcome"
+            id="adminWelcome">
+
+            </p>
+
+        </div>
+
+        <button
+        class="btn-outline"
+        onclick="logoutAdmin()">
+
+            Cerrar sesión
+
+        </button>
+
+    </div>
+
+    <!-- STATS -->
+
+    <div class="admin-cards">
+
+        <div class="admin-card">
+            <h3>TOTAL CITAS</h3>
+            <p id="statTotal">0</p>
+        </div>
+
+        <div class="admin-card">
+            <h3>PENDIENTES</h3>
+            <p id="statPendientes">0</p>
+        </div>
+
+        <div class="admin-card">
+            <h3>CLIENTES</h3>
+            <p id="statClientes">0</p>
+        </div>
+
+    </div>
+
+    <!-- TABLA CITAS -->
+
+    <div class="appointments-table">
+
+        <h2>Citas registradas</h2>
+
+        <div id="tableContainer">
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- ALERTA -->
+
+<div class="custom-alert" id="customAlert"></div>
+
+<script src="storage.js"></script>
+
+<script>
+
+/* VERIFICAR ACCESO */
+
+const user =
+JSON.parse(
+    localStorage.getItem("currentUser")
+);
+
+if(!user || user.role !== "admin"){
+
+    window.location.href = "index.html";
+
+}
+
+/* BIENVENIDA */
+
+document.getElementById("adminWelcome")
+.innerHTML =
+"Bienvenido, " + user.name;
+
+/* CARGAR DATOS */
+
+function loadDashboard(){
+
+    const appointments =
+    JSON.parse(
+        localStorage.getItem("appointments")
+    ) || [];
+
+    const users =
+    JSON.parse(
+        localStorage.getItem("users")
+    ) || [];
+
+    const clientes =
+    users.filter(u => u.role === "cliente");
+
+    const pendientes =
+    appointments.filter(
+        a => a.status === "pendiente"
+    );
+
+    document.getElementById(
+        "statTotal"
+    ).innerHTML =
+    appointments.length;
+
+    document.getElementById(
+        "statPendientes"
+    ).innerHTML =
+    pendientes.length;
+
+    document.getElementById(
+        "statClientes"
+    ).innerHTML =
+    clientes.length;
+
+    /* TABLA */
+
+    const container =
+    document.getElementById(
+        "tableContainer"
+    );
+
+    if(appointments.length === 0){
+
+        container.innerHTML = `
+        <div class="empty-state">
+            <p>No hay citas registradas aún.</p>
+        </div>
+        `;
+
+        return;
+
+    }
+
+    const sorted =
+    [...appointments].sort((a,b)=>
+        new Date(b.createdAt) -
+        new Date(a.createdAt)
+    );
+
+    let rows = "";
+
+    sorted.forEach(a=>{
+
+        rows += `
+        <tr>
+            <td>${a.userName}</td>
+            <td>${a.userEmail}</td>
+            <td>${a.services.join(", ")}</td>
+            <td>${a.barberName}</td>
+            <td>${a.date}</td>
+            <td>${a.time}</td>
+            <td>$${a.total.toLocaleString()}</td>
+            <td>
+                <span class="status-badge status-${a.status}">
+                    ${a.status}
+                </span>
+            </td>
+        </tr>
+        `;
+
+    });
+
+    container.innerHTML = `
+    <table>
+        <thead>
+            <tr>
+                <th>CLIENTE</th>
+                <th>CORREO</th>
+                <th>SERVICIOS</th>
+                <th>BARBERO</th>
+                <th>FECHA</th>
+                <th>HORA</th>
+                <th>TOTAL</th>
+                <th>ESTADO</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${rows}
+        </tbody>
+    </table>
+    `;
+
+}
+
+loadDashboard();
+
+/* LOGOUT */
+
+function logoutAdmin(){
+
+    localStorage.removeItem("currentUser");
+
+    window.location.href = "index.html";
+
+}
+
+</script>
+
+</body>
+</html>
